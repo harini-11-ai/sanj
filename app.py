@@ -1,67 +1,49 @@
 import streamlit as st
 import pandas as pd
-
-from datasets_search import load_openml_dataset, load_hf_dataset
+from datasets_search import load_openml_dataset, load_huggingface_dataset
 from preprocessing import preprocess_data
-from models import train_models
-from utils import plot_corr_matrix, plot_roc_curve
+from models import train_and_evaluate
+from utils import plot_correlation_matrix
 
-st.set_page_config(page_title="AI/ML Pipeline", layout="wide")
+st.set_page_config(page_title="ML Playground", layout="wide")
 
-st.title("🔍 AI/ML Dataset Explorer & Model Trainer")
+st.title("🚀 Machine Learning Playground")
 
-# ------------------ STEP 1: DATASET SELECTION ------------------
-st.header("Step 1: Choose a dataset")
-
-source = st.radio(
-    "Select dataset source:",
-    ["Upload CSV", "OpenML", "Hugging Face"],
-    horizontal=True
-)
+# Dataset selection
+st.sidebar.header("📂 Dataset Options")
+dataset_source = st.sidebar.radio("Choose dataset source:", ["Upload CSV", "OpenML", "Hugging Face"])
 
 df = None
 
-if source == "Upload CSV":
-    file = st.file_uploader("Upload a CSV file", type=["csv"])
-    if file:
-        df = pd.read_csv(file)
+if dataset_source == "Upload CSV":
+    uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type=["csv"])
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
 
-elif source == "OpenML":
-    openml_id = st.text_input("Enter OpenML dataset ID (e.g., 61 for Iris)")
-    if st.button("Load from OpenML") and openml_id:
-        try:
-            df = load_openml_dataset(openml_id)
-        except Exception as e:
-            st.error(f"Failed to load OpenML dataset: {e}")
+elif dataset_source == "OpenML":
+    openml_id = st.sidebar.text_input("Enter OpenML dataset ID", "61")
+    st.sidebar.caption("👉 Example: 61 = Iris dataset")
+    if st.sidebar.button("Load from OpenML"):
+        df = load_openml_dataset(openml_id)
 
-elif source == "Hugging Face":
-    hf_name = st.text_input("Enter Hugging Face dataset name (e.g., 'imdb')")
-    if st.button("Load from HuggingFace") and hf_name:
-        try:
-            df = load_hf_dataset(hf_name)
-        except Exception as e:
-            st.error(f"Failed to load Hugging Face dataset: {e}")
+elif dataset_source == "Hugging Face":
+    hf_name = st.sidebar.text_input("Enter Hugging Face dataset name", "imdb")
+    st.sidebar.caption("👉 Example: imdb = sentiment analysis dataset")
+    if st.sidebar.button("Load from Hugging Face"):
+        df = load_huggingface_dataset(hf_name)
 
-# Show dataset preview
 if df is not None:
-    st.success(f"✅ Loaded dataset with shape {df.shape}")
-    st.dataframe(df.head())
+    st.write("### 📊 Dataset Preview", df.head())
+    st.write("Shape:", df.shape)
 
-    # ------------------ STEP 2: PREPROCESSING ------------------
-    st.header("Step 2: Preprocess Data")
-    target_col = st.selectbox("Select target column", df.columns)
-    X_train, X_test, y_train, y_test = preprocess_data(df, target_col)
-    st.write("✅ Data preprocessed!")
+    target_col = st.selectbox("🎯 Select target column", df.columns)
+    if target_col:
+        X_train, X_test, y_train, y_test = preprocess_data(df, target_col)
+        results = train_and_evaluate(X_train, X_test, y_train, y_test)
 
-    # ------------------ STEP 3: MODEL TRAINING ------------------
-    st.header("Step 3: Train Models")
-    results, trained_models = train_models(X_train, X_test, y_train, y_test)
-    st.dataframe(results)
+        st.write("### 📈 Model Results")
+        for model, metrics in results.items():
+            st.write(f"**{model}** → {metrics}")
 
-    # ------------------ STEP 4: VISUALIZATIONS ------------------
-    st.header("Step 4: Visualizations")
-    st.subheader("Correlation Matrix")
-    st.pyplot(plot_corr_matrix(df))
-
-    st.subheader("ROC Curves")
-    st.pyplot(plot_roc_curve(trained_models, X_test, y_test))
+        st.write("### 🔎 Correlation Matrix")
+        st.pyplot(plot_correlation_matrix(df))
