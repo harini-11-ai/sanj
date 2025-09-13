@@ -6,3 +6,5 @@ openml
 datasets
 matplotlib
 seaborn
+plotly
+scipy
