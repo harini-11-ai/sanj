@@ -19,6 +19,21 @@ st.markdown("**Advanced ML with Comprehensive EDA & Model Evaluation**")
 st.sidebar.header("📂 Dataset Options")
 dataset_source = st.sidebar.radio("Choose dataset source:", ["Upload CSV", "OpenML", "Hugging Face"])
 
+# Add info about dataset sources
+with st.sidebar.expander("ℹ️ Dataset Info"):
+    st.write("""
+    **📁 Upload CSV**: Upload your own dataset
+    
+    **🔬 OpenML**: 1000+ datasets for ML research
+    - Classification: Iris, Wine, Breast Cancer, etc.
+    - Regression: Boston Housing, Auto MPG, etc.
+    
+    **🤗 Hugging Face**: NLP and text datasets
+    - Sentiment: IMDB, Amazon, Yelp reviews
+    - Classification: News, DBpedia
+    - GLUE benchmark tasks
+    """)
+
 df = None
 
 if dataset_source == "Upload CSV":
@@ -27,18 +42,96 @@ if dataset_source == "Upload CSV":
         df = pd.read_csv(uploaded_file)
 
 elif dataset_source == "OpenML":
-    openml_id = st.sidebar.text_input("Enter OpenML dataset ID", "61")
-    st.sidebar.caption("👉 Example: 61 = Iris dataset")
+    st.sidebar.subheader("📋 Popular Datasets")
+    
+    # Popular OpenML datasets
+    popular_datasets = {
+        "Iris (Classification)": "61",
+        "Wine (Classification)": "187", 
+        "Breast Cancer (Classification)": "13",
+        "Diabetes (Classification)": "37",
+        "Heart Disease (Classification)": "45",
+        "Boston Housing (Regression)": "529",
+        "Auto MPG (Regression)": "9",
+        "Abalone (Regression)": "183",
+        "CPU Performance (Regression)": "562",
+        "Servo (Regression)": "871",
+        "Glass Identification (Classification)": "40",
+        "Sonar (Classification)": "151",
+        "Vehicle (Classification)": "54",
+        "Segment (Classification)": "36",
+        "Waveform (Classification)": "60"
+    }
+    
+    # Dataset selection method
+    selection_method = st.sidebar.radio("Choose selection method:", ["Popular Datasets", "Custom ID"])
+    
+    if selection_method == "Popular Datasets":
+        selected_dataset = st.sidebar.selectbox(
+            "Select a dataset:",
+            options=list(popular_datasets.keys()),
+            index=0
+        )
+        openml_id = popular_datasets[selected_dataset]
+        st.sidebar.caption(f"Dataset ID: {openml_id}")
+    else:
+        openml_id = st.sidebar.text_input("Enter OpenML dataset ID", "61")
+        st.sidebar.caption("👉 Example: 61 = Iris dataset")
+    
     if st.sidebar.button("Load from OpenML"):
-        df = load_openml_dataset(openml_id)
+        with st.spinner(f"🔄 Loading dataset {openml_id}..."):
+            df = load_openml_dataset(openml_id)
+            if df is None:
+                st.error("❌ Failed to load dataset from OpenML")
+            else:
+                st.success(f"✅ Successfully loaded dataset {openml_id}")
 
 elif dataset_source == "Hugging Face":
-    hf_name = st.sidebar.text_input("Enter Hugging Face dataset name", "imdb")
-    st.sidebar.caption("👉 Example: imdb = sentiment analysis dataset")
+    st.sidebar.subheader("📋 Popular NLP Datasets")
+    
+    # Popular Hugging Face datasets
+    popular_hf_datasets = {
+        "IMDB Reviews (Sentiment)": "imdb",
+        "Amazon Reviews (Sentiment)": "amazon_polarity",
+        "Yelp Reviews (Sentiment)": "yelp_review_full",
+        "AG News (Classification)": "ag_news",
+        "DBpedia (Classification)": "dbpedia_14",
+        "20 Newsgroups (Classification)": "newsgroup",
+        "SQuAD (QA)": "squad",
+        "CoLA (Grammar)": "glue",
+        "SST-2 (Sentiment)": "glue",
+        "MRPC (Paraphrase)": "glue",
+        "QQP (Paraphrase)": "glue",
+        "MNLI (NLI)": "glue",
+        "QNLI (NLI)": "glue",
+        "RTE (NLI)": "glue",
+        "WNLI (NLI)": "glue"
+    }
+    
+    # Dataset selection method
+    hf_selection_method = st.sidebar.radio("Choose selection method:", ["Popular Datasets", "Custom Name"])
+    
+    if hf_selection_method == "Popular Datasets":
+        selected_hf_dataset = st.sidebar.selectbox(
+            "Select a dataset:",
+            options=list(popular_hf_datasets.keys()),
+            index=0
+        )
+        hf_name = popular_hf_datasets[selected_hf_dataset]
+        st.sidebar.caption(f"Dataset: {hf_name}")
+    else:
+        hf_name = st.sidebar.text_input("Enter Hugging Face dataset name", "imdb")
+        st.sidebar.caption("👉 Example: imdb = sentiment analysis dataset")
+    
     if st.sidebar.button("Load from Hugging Face"):
-        df = load_huggingface_dataset(hf_name)
+        with st.spinner(f"🔄 Loading dataset {hf_name}..."):
+            df = load_huggingface_dataset(hf_name)
+            if df is None:
+                st.error("❌ Failed to load dataset from Hugging Face")
+            else:
+                st.success(f"✅ Successfully loaded dataset {hf_name}")
 
-if df is not None:
+if df is not None and not df.empty:
     st.write("### 📊 Dataset Preview")
     st.dataframe(df.head(10))
     st.write(f"**Shape:** {df.shape[0]} rows × {df.shape[1]} columns")
@@ -62,12 +155,35 @@ if df is not None:
         st.info(f"**Problem Type:** {'Classification' if is_classification else 'Regression'} ({unique_targets} unique values)")
         
         # Preprocessing
-        with st.spinner("🔄 Preprocessing data..."):
-            X_train, X_test, y_train, y_test = preprocess_data(df, target_col)
+        try:
+            with st.spinner("🔄 Preprocessing data..."):
+                X_train, X_test, y_train, y_test = preprocess_data(df, target_col)
+            
+            # Check if preprocessing was successful
+            if X_train is None or len(X_train) == 0:
+                st.error("❌ Preprocessing failed: No valid data after preprocessing")
+                st.stop()
+            
+            st.success(f"✅ Data preprocessed successfully: {X_train.shape[0]} training samples, {X_test.shape[0]} test samples")
+            
+        except Exception as e:
+            st.error(f"❌ Preprocessing failed: {str(e)}")
+            st.info("💡 Try selecting a different target column or check your data for issues")
+            st.stop()
         
         # Model Training
-        with st.spinner("🤖 Training models..."):
-            results, trained_models = train_and_evaluate(X_train, X_test, y_train, y_test)
+        try:
+            with st.spinner("🤖 Training models..."):
+                results, trained_models = train_and_evaluate(X_train, X_test, y_train, y_test)
+            
+            if not results or not trained_models:
+                st.error("❌ Model training failed")
+                st.stop()
+                
+        except Exception as e:
+            st.error(f"❌ Model training failed: {str(e)}")
+            st.info("💡 This might be due to data type issues or insufficient data")
+            st.stop()
         
         # Create tabs for different sections
         tab1, tab2, tab3, tab4 = st.tabs(["📊 EDA", "🤖 Model Results", "📈 Predictions", "ℹ️ Dataset Info"])

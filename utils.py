@@ -149,14 +149,18 @@ def plot_feature_importance(model, feature_names, model_name="Model", top_n=10):
         return None
     
     importances = model.feature_importances_
-    indices = np.argsort(importances)[::-1][:top_n]
+    n_features = len(importances)
+    
+    # Adjust top_n if there are fewer features
+    actual_top_n = min(top_n, n_features)
+    indices = np.argsort(importances)[::-1][:actual_top_n]
     
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(range(top_n), importances[indices])
+    ax.bar(range(actual_top_n), importances[indices])
     ax.set_xlabel('Features')
     ax.set_ylabel('Importance')
     ax.set_title(f'✅ Feature Importance - {model_name}', fontsize=16, fontweight='bold')
-    ax.set_xticks(range(top_n))
+    ax.set_xticks(range(actual_top_n))
     ax.set_xticklabels([feature_names[i] for i in indices], rotation=45, ha='right')
     plt.tight_layout()
     return fig
